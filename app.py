@@ -1,10 +1,13 @@
-import os
-from flask import Flask, request, render_template, jsonify
+from flask import Flask, request, jsonify
+from flask_cors import CORS
 import requests
 import datetime
 import math
+import os
 
 app = Flask(__name__)
+CORS(app)  # Allow React frontend to connect
+
 CLICKUP_TOKEN = 'pk_132090641_NJ3Z7FO8C32Q1JK0Z61IJ5KXMF80DFQ0'
 CLICKUP_LIST_ID = '901309228827'
 HEADERS = {'Authorization': CLICKUP_TOKEN, 'Content-Type': 'application/json'}
@@ -23,40 +26,37 @@ def is_within_geofence(lat, lon, site):
     distance = math.sqrt((lat - site_lat)**2 + (lon - site_lon)**2) * 111320
     return distance <= radius
 
-@app.route('/', methods=['GET', 'POST'])
-def home():
-    if request.method == 'POST':
-        print("Form data received:", request.form)
-        try:
-            action = request.form['action']
-            staff_id = request.form['staff_id']
-            site = request.form['site']
-            lat = float(request.form['lat'])
-            lon = float(request.form['lon'])
-            now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+@app.route('/api/clock', methods=['POST'])
+def clock():
+    data = request.json
+    try:
+        action = data['action']
+        staff_id = data['staff_id']
+        site = data['site']
+        lat = float(data['lat'])
+        lon = float(data['lon'])
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
-            if not is_within_geofence(lat, lon, site):
-                return jsonify({'error': 'You must be on-site to clock in/report'}), 403
+        if not is_within_geofence(lat, lon, site):
+            return jsonify({'error': 'You must be on-site to clock in/report'}), 403
 
-            action_map = {'clock_in': 'In', 'clock_out': 'Out', 'report': 'Report'}
-            task_data = {'name': f'{staff_id} - {action_map[action]} - {now}', 'description': f'Site: {site}'}
-            response = requests.post(
-                f'https://api.clickup.com/api/v2/list/{CLICKUP_LIST_ID}/task',
-                headers=HEADERS,
-                json=task_data
-            )
-            print(f"ClickUp POST response: {response.status_code} - {response.text}")
-            if response.status_code in [200, 201]:
-                return jsonify({'message': f'{action.replace("_", " ").capitalize()}ed successfully!'})
-            else:
-                return jsonify({'error': f'Failed to log to ClickUp: {response.status_code} - {response.text}'}), 500
-        except KeyError as e:
-            return jsonify({'error': f'Missing field: {e}'}), 400
-        except ValueError as e:
-            return jsonify({'error': 'Invalid location data'}), 400
-    return render_template('index.html', sites=SITES.keys())
+        action_map = {'clock_in': 'In', 'clock_out': 'Out', 'report': 'Report'}
+        task_data = {'name': f'{staff_id} - {action_map[action]} - {now}', 'description': f'Site: {site}'}
+        response = requests.post(
+            f'https://api.clickup.com/api/v2/list/{CLICKUP_LIST_ID}/task',
+            headers=HEADERS,
+            json=task_data
+        )
+        print(f"ClickUp POST response: {response.status_code} - {response.text}")
+        if response.status_code in [200, 201]:
+            return jsonify({'message': f'{action.replace("_", " ").capitalize()}ed successfully!'})
+        return jsonify({'error': f'Failed to log to ClickUp: {response.status_code} - {response.text}'}), 500
+    except KeyError as e:
+        return jsonify({'error': f'Missing field: {e}'}), 400
+    except ValueError as e:
+        return jsonify({'error': 'Invalid location data'}), 400
 
-@app.route('/hours', methods=['GET'])
+@app.route('/api/hours', methods=['GET'])
 def hours():
     from_date = request.args.get('from')
     to_date = request.args.get('to')
@@ -70,9 +70,7 @@ def hours():
     except ValueError:
         return jsonify({'error': 'Invalid date format'}), 400
 
-    print(f"Date range: {start} to {end}")
     tasks = requests.get(f'https://api.clickup.com/api/v2/list/{CLICKUP_LIST_ID}/task', headers=HEADERS).json()['tasks']
-    print("Raw tasks from ClickUp:", tasks)
     
     events = []
     for task in tasks:
@@ -105,12 +103,10 @@ def hours():
 
     hours = {}
     in_times = {}
-
     for event in events:
         staff_id = event['staff_id']
         action = event['action']
         time = event['time']
-        
         if action == 'In':
             if staff_id not in in_times:
                 in_times[staff_id] = []
@@ -123,13 +119,9 @@ def hours():
                 if staff_id not in hours:
                     hours[staff_id] = {}
                 hours[staff_id][date_str] = (time - in_time).total_seconds() / 3600
-                print(f"Paired {staff_id} on {date_str}: {hours[staff_id][date_str]} hours")
+                print(f"Paired {staff_id} on {date_str}: {hours[staff_id][date_str]}")
 
-    total_hours = {}
-    for staff_id in hours:
-        total_hours[staff_id] = sum(hours[staff_id].values())
-        print(f"Total for {staff_id}: {total_hours[staff_id]} hours")
-
+    total_hours = {staff_id: sum(hours[staff_id].values()) for staff_id in hours}
     print("Final total hours:", total_hours)
     return jsonify({'message': 'Hours calculated', 'hours': total_hours})
 
