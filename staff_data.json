@@ -1,0 +1,28 @@
+{
+    "staff": [
+      {
+        "user_id": "M001",
+        "phone": "9999999999",
+        "password": "manager123",
+        "role": "manager"
+      },
+      {
+        "user_id": "S001",
+        "phone": "1234567890",
+        "password": "staff123",
+        "role": "staff"
+      },
+      {
+        "user_id": "S002",
+        "phone": "0987654321",
+        "password": "staff456",
+        "role": "staff"
+      },
+      {
+        "user_id": "S003",
+        "phone": "1122334455",
+        "password": "staff789",
+        "role": "staff"
+      }
+    ]
+  }
