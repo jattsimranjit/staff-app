@@ -10,7 +10,6 @@ function App() {
   const [password, setPassword] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [staffId, setStaffId] = useState('');
-  const [site, setSite] = useState('Site 1');
   const [message, setMessage] = useState('');
   const [isClockedIn, setIsClockedIn] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -58,8 +57,6 @@ function App() {
         try {
           const response = await axios.post(`${API_URL}/clock`, {
             action,
-            staff_id: staffId,
-            site,
             lat: position.coords.latitude,
             lon: position.coords.longitude,
           });
@@ -138,9 +135,11 @@ function App() {
                 onChange={(e) => setPassword(e.target.value)}
               />
             </label>
-            <button type="submit" disabled={loading}>
-              {loading ? 'Logging in...' : 'Login'}
-            </button>
+            <div className="login-button-container">
+              <button className="blue" type="submit" disabled={loading}>
+                {loading ? 'Logging in...' : 'Login'}
+              </button>
+            </div>
           </form>
           {message && <p className="message">{message}</p>}
         </div>
@@ -154,33 +153,46 @@ function App() {
         <h2>Staff Portal</h2>
         <ul>
           <li className={tab === 'home' ? 'active' : ''} onClick={() => setTab('home')}>
+            <svg className="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+              <polyline points="9 22 9 12 15 12 15 22"></polyline>
+            </svg>
             Home
           </li>
           <li className={tab === 'schedule' ? 'active' : ''} onClick={() => setTab('schedule')}>
+            <svg className="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
             Schedule
           </li>
           <li className={tab === 'hours' ? 'active' : ''} onClick={() => setTab('hours')}>
+            <svg className="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
             Hours
           </li>
-          <li onClick={handleLogout}>Logout</li>
+          <li onClick={handleLogout}>
+            <svg className="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+            Logout
+          </li>
         </ul>
+        <div className="sidebar-logo">
+          <img src="/fortis-logo.png" alt="Fortis Security Logo" />
+        </div>
       </div>
       <div className="main-content">
         {tab === 'home' && (
           <div className="tab-content">
-            <h1>Clock In/Out</h1>
-            <p>Staff ID: {staffId}</p>
-            <label>
-              Site
-              <select value={site} onChange={(e) => setSite(e.target.value)}>
-                <option value="Site 1">Site 1</option>
-                <option value="Site 2">Site 2</option>
-                <option value="Site 3">Site 3</option>
-                <option value="Site 4">Site 4</option>
-                <option value="Site 5">Site 5</option>
-                <option value="Site 6">Site 6</option>
-              </select>
-            </label>
+            <h1>Welcome {staffId}</h1>
+            <p className="staff-id">Staff ID: {staffId}</p>
             <div className="button-group">
               <button
                 className={isClockedIn ? 'grayed' : 'blue'}
@@ -210,6 +222,12 @@ function App() {
                   className={`shift-row ${shift.site === 'Site 1' ? 'site1' : 'site2'}`}
                   onClick={() => setSelectedShift(shift)}
                 >
+                  <svg className="shift-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                  </svg>
                   <span>{shift.site}</span>
                   <span>{shift.date}</span>
                   <span>{`${shift.start} - ${shift.end}`}</span>
@@ -233,34 +251,42 @@ function App() {
         {tab === 'hours' && (
           <div className="tab-content">
             <h1>Your Hours</h1>
-            <form onSubmit={viewHours}>
-              <label>
-                From
-                <input
-                  type="date"
-                  value={fromDate}
-                  onChange={(e) => setFromDate(e.target.value)}
-                />
-              </label>
-              <label>
-                To
-                <input
-                  type="date"
-                  value={toDate}
-                  onChange={(e) => setToDate(e.target.value)}
-                />
-              </label>
-              <button type="submit" disabled={loading}>
-                {loading ? 'Loading...' : 'View Hours'}
-              </button>
+            <form onSubmit={viewHours} className="hours-form">
+              <div className="date-inputs">
+                <label>
+                  From
+                  <input
+                    type="date"
+                    value={fromDate}
+                    onChange={(e) => setFromDate(e.target.value)}
+                  />
+                </label>
+                <label>
+                  To
+                  <input
+                    type="date"
+                    value={toDate}
+                    onChange={(e) => setToDate(e.target.value)}
+                  />
+                </label>
+              </div>
+              <div className="hours-button-container">
+                <button className="blue" type="submit" disabled={loading}>
+                  {loading ? 'Loading...' : 'View Hours'}
+                </button>
+              </div>
             </form>
             {hours !== null && (
-              <p className="hours-display">Total Hours: {hours.toFixed(2)} hours</p>
+              <div className="hours-card">
+                <p className="hours-display">Total Hours: {hours.toFixed(2)}</p>
+                <span className="hours-unit">hours</span>
+              </div>
             )}
             {message && <p className="message">{message}</p>}
           </div>
         )}
       </div>
+      <footer className="app-footer">Fortis Security Staff App</footer>
     </div>
   );
 }

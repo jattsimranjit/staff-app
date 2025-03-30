@@ -31,6 +31,12 @@ USERS = {
     "0987654321": "staff456"
 }
 
+# Mock shift assignments (phone: site)
+SHIFT_ASSIGNMENTS = {
+    "1234567890": "Site 1",
+    "0987654321": "Site 2"
+}
+
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -79,7 +85,7 @@ def clock():
     try:
         action = data['action']
         staff_id = session['staff_id']
-        site = data['site']
+        site = SHIFT_ASSIGNMENTS.get(staff_id, 'Site 1')  # Default to Site 1 if not assigned
         lat = float(data['lat'])
         lon = float(data['lon'])
         now = datetime.datetime.now(datetime.timezone.utc).isoformat()
@@ -196,12 +202,12 @@ def schedule():
     staff_id = session['staff_id']
     today = datetime.datetime.now(datetime.timezone.utc).date()
     shifts = []
-    # Mock data - replace with real schedule source later
+    assigned_site = SHIFT_ASSIGNMENTS.get(staff_id, 'Site 1')
     for i in range(14):
         date = today + datetime.timedelta(days=i)
         if i % 3 == 0:
             shifts.append({
-                'site': 'Site 1',
+                'site': assigned_site,
                 'date': date.isoformat(),
                 'start': '09:00',
                 'end': '17:00',
@@ -209,7 +215,7 @@ def schedule():
             })
         elif i % 3 == 1:
             shifts.append({
-                'site': 'Site 2',
+                'site': 'Site 2' if assigned_site != 'Site 2' else 'Site 1',
                 'date': date.isoformat(),
                 'start': '13:00',
                 'end': '21:00',
