@@ -118,30 +118,32 @@ function App() {
   if (!isLoggedIn) {
     return (
       <div className="login-page">
-        <h1>Staff Login</h1>
-        <form onSubmit={handleLogin}>
-          <label>
-            Phone:{' '}
-            <input
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="e.g., 1234567890"
-            />
-          </label>
-          <label>
-            Password:{' '}
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </label>
-          <button type="submit" disabled={loading}>
-            {loading ? 'Logging in...' : 'Login'}
-          </button>
-        </form>
-        {message && <p className="message">{message}</p>}
+        <div className="login-container">
+          <h1>Staff Login</h1>
+          <form onSubmit={handleLogin}>
+            <label>
+              Phone
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="e.g., 1234567890"
+              />
+            </label>
+            <label>
+              Password
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </label>
+            <button type="submit" disabled={loading}>
+              {loading ? 'Logging in...' : 'Login'}
+            </button>
+          </form>
+          {message && <p className="message">{message}</p>}
+        </div>
       </div>
     );
   }
@@ -169,7 +171,7 @@ function App() {
             <h1>Clock In/Out</h1>
             <p>Staff ID: {staffId}</p>
             <label>
-              Site:{' '}
+              Site
               <select value={site} onChange={(e) => setSite(e.target.value)}>
                 <option value="Site 1">Site 1</option>
                 <option value="Site 2">Site 2</option>
@@ -233,7 +235,7 @@ function App() {
             <h1>Your Hours</h1>
             <form onSubmit={viewHours}>
               <label>
-                From:{' '}
+                From
                 <input
                   type="date"
                   value={fromDate}
@@ -241,7 +243,7 @@ function App() {
                 />
               </label>
               <label>
-                To:{' '}
+                To
                 <input
                   type="date"
                   value={toDate}
