@@ -43,6 +43,7 @@ def clock():
             return jsonify({'error': 'You must be on-site to clock in/report'}), 403
 
         action_map = {'clock_in': 'In', 'clock_out': 'Out', 'report': 'Report'}
+        action_verbs = {'clock_in': 'Clocked in', 'clock_out': 'Clocked out', 'report': 'Reported'}
         task_data = {'name': f'{staff_id} - {action_map[action]} - {now}', 'description': f'Site: {site}'}
         response = requests.post(
             f'https://api.clickup.com/api/v2/list/{CLICKUP_LIST_ID}/task',
@@ -51,7 +52,9 @@ def clock():
         )
         print(f"ClickUp POST response: {response.status_code} - {response.text}")
         if response.status_code in [200, 201]:
-            return jsonify({'message': f'{action.replace("_", " ").capitalize()}ed successfully!'})  # Fixed typo
+            msg = f'{action_verbs[action]} successfully!'
+            print(f"Sending message: {msg}")
+            return jsonify({'message': msg})
         return jsonify({'error': f'Failed to log to ClickUp: {response.status_code} - {response.text}'}), 500
     except KeyError as e:
         print(f"KeyError: {e}")
