@@ -10,7 +10,6 @@ from functools import wraps
 load_dotenv()
 
 app = Flask(__name__)
-# Updated CORS config to support credentials
 CORS(app, resources={r"/api/*": {"origins": "https://effective-palm-tree-69w959x7xqvp3ppg-3000.app.github.dev"}}, supports_credentials=True)
 app.secret_key = os.getenv('SECRET_KEY', 'supersecretkey')
 
@@ -190,6 +189,33 @@ def hours():
     total_hours = {staff_id: round(sum(hours[staff_id].values()), 2) for staff_id in hours}
     print(f"Final total hours: {total_hours}")
     return jsonify({'message': 'Hours calculated', 'hours': total_hours})
+
+@app.route('/api/schedule', methods=['GET'])
+@login_required
+def schedule():
+    staff_id = session['staff_id']
+    today = datetime.datetime.now(datetime.timezone.utc).date()
+    shifts = []
+    # Mock data - replace with real schedule source later
+    for i in range(14):
+        date = today + datetime.timedelta(days=i)
+        if i % 3 == 0:
+            shifts.append({
+                'site': 'Site 1',
+                'date': date.isoformat(),
+                'start': '09:00',
+                'end': '17:00',
+                'address': '123 Main St, Surrey, BC'
+            })
+        elif i % 3 == 1:
+            shifts.append({
+                'site': 'Site 2',
+                'date': date.isoformat(),
+                'start': '13:00',
+                'end': '21:00',
+                'address': '456 Oak Ave, Surrey, BC'
+            })
+    return jsonify({'shifts': shifts})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=True)

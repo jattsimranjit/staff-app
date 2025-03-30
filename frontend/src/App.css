@@ -1,50 +1,212 @@
-.App {
-    text-align: center;
+/* Global Styles */
+body {
+    margin: 0;
+    font-family: 'Arial', sans-serif;
+    background: #f4f7fa;
+  }
+  
+  .app-container {
+    display: flex;
+    min-height: 100vh;
+  }
+  
+  /* Sidebar */
+  .sidebar {
+    width: 250px;
+    background: linear-gradient(135deg, #2c3e50, #3498db);
+    color: white;
     padding: 20px;
-    font-family: Arial, sans-serif;
+    position: fixed;
+    height: 100%;
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
   }
   
-  .clock-section {
-    margin: 20px 0;
+  .sidebar h2 {
+    margin: 0 0 30px;
+    font-size: 24px;
+    text-align: center;
   }
   
-  label {
+  .sidebar ul {
+    list-style: none;
+    padding: 0;
+  }
+  
+  .sidebar li {
+    padding: 15px 20px;
+    margin: 10px 0;
+    cursor: pointer;
+    border-radius: 10px;
+    transition: background 0.3s;
+  }
+  
+  .sidebar li:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+  
+  .sidebar li.active {
+    background: #2980b9;
+  }
+  
+  /* Main Content */
+  .main-content {
+    margin-left: 250px;
+    flex-grow: 1;
+    padding: 40px;
+  }
+  
+  .tab-content {
+    background: white;
+    padding: 30px;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    max-width: 800px;
+    margin: 0 auto;
+  }
+  
+  .tab-content h1 {
+    color: #2c3e50;
+    margin-bottom: 20px;
+  }
+  
+  /* Login Page */
+  .login-page {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    background: #ecf0f1;
+  }
+  
+  .login-page h1 {
+    color: #2c3e50;
+    margin-bottom: 30px;
+  }
+  
+  .login-page form {
+    background: white;
+    padding: 30px;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  }
+  
+  .login-page label {
+    display: block;
+    margin: 15px 0;
+  }
+  
+  /* Buttons */
+  button {
+    padding: 12px 25px;
+    border: none;
+    border-radius: 20px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: transform 0.2s, background 0.3s;
+    width: 140px;
     margin: 10px;
   }
   
-  button {
-    margin: 5px;
-    padding: 10px 20px;
-    border: none;
-    border-radius: 20px; /* Rounded edges */
-    font-size: 16px;
-    cursor: pointer;
-    width: 120px; /* Fixed width for rectangle */
+  button:hover:not(:disabled) {
+    transform: scale(1.05);
   }
   
   .blue {
-    background-color: #007BFF;
+    background: #3498db;
     color: white;
   }
   
   .blue:hover {
-    background-color: #0056b3;
+    background: #2980b9;
   }
   
   .grayed {
-    background-color: #cccccc;
+    background: #dcdcdc;
     color: #666;
     cursor: not-allowed;
   }
   
   button:disabled {
-    background-color: #cccccc;
+    background: #dcdcdc;
     color: #666;
     cursor: not-allowed;
   }
   
+  /* Clock Section */
+  .button-group {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+  }
+  
+  select, input {
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    margin: 10px 0;
+  }
+  
+  /* Schedule */
+  .shift-list {
+    max-height: 400px;
+    overflow-y: auto;
+  }
+  
+  .shift-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: transform 0.2s;
+  }
+  
+  .shift-row:hover {
+    transform: translateX(5px);
+  }
+  
+  .shift-row.site1 {
+    background: #e8f5e9;
+    border-left: 5px solid #4caf50;
+  }
+  
+  .shift-row.site2 {
+    background: #fff3e0;
+    border-left: 5px solid #ff9800;
+  }
+  
+  .modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .modal-content {
+    background: white;
+    padding: 20px;
+    border-radius: 15px;
+    max-width: 400px;
+    text-align: left;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  }
+  
+  /* Hours */
+  .hours-display {
+    color: #2ecc71;
+    font-size: 1.5em;
+    margin-top: 20px;
+  }
+  
   .message {
-    color: #333;
+    color: #e74c3c;
     font-weight: bold;
-    margin-top: 10px;
+    margin-top: 15px;
   }
