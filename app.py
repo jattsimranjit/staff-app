@@ -1,87 +1,132 @@
 from flask import Flask, request, jsonify, session
 from flask_cors import CORS
-import json
-import os
+import sqlite3
+from functools import wraps
 
 app = Flask(__name__)
-app.secret_key = 'your-secret-key-here'  # Replace with a secure key (e.g., 'supersecret123')
+app.secret_key = 'your-secret-key-here'  # Replace with a secure key
 CORS(app, supports_credentials=True)
 
-# File paths in the root directory
-STAFF_DATA_FILE = 'staff_data.json'
-SCHEDULE_FILE = 'schedule_data.json'
+def get_db_connection():
+    conn = sqlite3.connect('staff_app.db')
+    conn.row_factory = sqlite3.Row  # Return rows as dictionaries
+    return conn
 
-def load_staff_data():
-    if os.path.exists(STAFF_DATA_FILE):
-        with open(STAFF_DATA_FILE, 'r') as f:
-            return json.load(f)
-    return {"staff": []}
-
-def load_schedule_data():
-    if os.path.exists(SCHEDULE_FILE):
-        with open(SCHEDULE_FILE, 'r') as f:
-            return json.load(f)
-    # If file doesn't exist, return empty shifts structure
-    return {"shifts": []}
-
-def save_schedule_data(data):
-    with open(SCHEDULE_FILE, 'w') as f:
-        json.dump(data, f, indent=2)
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return jsonify({'error': 'Not logged in'}), 401
+        return f(*args, **kwargs)
+    return decorated_function
 
 @app.route('/api/login', methods=['POST'])
 def login():
     data = request.get_json()
     phone = data.get('phone')
     password = data.get('password')
-    staff_data = load_staff_data()
-
-    for user in staff_data['staff']:
-        if user['phone'] == phone and user['password'] == password:
-            session['user_id'] = user['user_id']
-            session['role'] = user['role']
-            return jsonify({"user_id": user['user_id'], "role": user['role']}), 200
-    return jsonify({"error": "Invalid credentials"}), 401
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM users WHERE phone = ? AND password = ?', (phone, password))
+    user = cursor.fetchone()
+    conn.close()
+    if user:
+        session['user_id'] = user['user_id']
+        session['role'] = user['role']
+        return jsonify({'user_id': user['user_id'], 'role': user['role']})
+    return jsonify({'error': 'Invalid credentials'}), 401
 
 @app.route('/api/logout', methods=['POST'])
+@login_required
 def logout():
     session.pop('user_id', None)
     session.pop('role', None)
-    return jsonify({"message": "Logged out"}), 200
-
-@app.route('/api/clock', methods=['POST'])
-def clock():
-    if 'user_id' not in session or session['role'] != 'staff':
-        return jsonify({"error": "Not authorized"}), 401
-    data = request.get_json()
-    action = data.get('action')
-    lat = data.get('lat')
-    lon = data.get('lon')
-    user_id = session['user_id']
-    return jsonify({"message": f"{action} successful for {user_id} at ({lat}, {lon})"}), 200
+    return jsonify({'message': 'Logged out successfully'})
 
 @app.route('/api/schedule', methods=['GET'])
+@login_required
 def get_schedule():
-    if 'user_id' not in session:
-        return jsonify({"error": "Not logged in"}), 401
-    user_id = session['user_id']
-    role = session['role']
-    schedule_data = load_schedule_data()
-
-    if role == 'manager':
-        return jsonify({"shifts": schedule_data["shifts"]}), 200
-    else:  # staff
-        user_shifts = [shift for shift in schedule_data["shifts"] if shift['staff_id'] == user_id]
-        return jsonify({"shifts": user_shifts}), 200
+    user_role = session.get('role')
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    if user_role == 'manager':
+        cursor.execute('SELECT * FROM shifts')
+        shifts = cursor.fetchall()
+        cursor.execute('SELECT user_id, name FROM users WHERE role = "staff"')
+        staff = cursor.fetchall()
+        conn.close()
+        return jsonify({
+            'shifts': [{'staff_id': s['staff_id'], 'site': s['site'], 'date': s['date'], 'start': s['start'], 'end': s['end']} for s in shifts],
+            'staff': [{'user_id': s['user_id'], 'name': s['name']} for s in staff]
+        })
+    else:
+        cursor.execute('SELECT * FROM shifts WHERE staff_id = ?', (session['user_id'],))
+        shifts = cursor.fetchall()
+        conn.close()
+        return jsonify({'shifts': [{'staff_id': s['staff_id'], 'site': s['site'], 'date': s['date'], 'start': s['start'], 'end': s['end']} for s in shifts]})
 
 @app.route('/api/schedule', methods=['POST'])
-def set_schedule():
-    if 'user_id' not in session or session['role'] != 'manager':
-        return jsonify({"error": "Not authorized"}), 401
+@login_required
+def add_shift():
+    if session.get('role') != 'manager':
+        return jsonify({'error': 'Unauthorized'}), 403
     data = request.get_json()
-    schedule_data = load_schedule_data()
-    schedule_data["shifts"].append(data)
-    save_schedule_data(schedule_data)
-    return jsonify({"message": "Shift assigned successfully"}), 200
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('INSERT INTO shifts (staff_id, site, date, start, end) VALUES (?, ?, ?, ?, ?)',
+                   (data['staff_id'], data['site'], data['date'], data['start'], data['end']))
+    conn.commit()
+    conn.close()
+    return jsonify({'message': 'Shift added successfully'})
+
+@app.route('/api/staff', methods=['GET'])
+@login_required
+def get_staff():
+    if session.get('role') != 'manager':
+        return jsonify({'error': 'Unauthorized'}), 403
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM users WHERE role = "staff"')
+    staff = cursor.fetchall()
+    conn.close()
+    return jsonify([dict(s) for s in staff])
+
+@app.route('/api/staff', methods=['POST'])
+@login_required
+def add_staff():
+    if session.get('role') != 'manager':
+        return jsonify({'error': 'Unauthorized'}), 403
+    data = request.get_json()
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute('''
+            INSERT INTO users (user_id, name, email, phone, password, role, address, dob, sin, security_license, emergency_contact_name, emergency_contact_number, note)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (data['user_id'], data['name'], data['email'], data['phone'], data['password'], 'staff',
+              data.get('address'), data.get('dob'), data.get('sin'), data.get('security_license'),
+              data.get('emergency_contact_name'), data.get('emergency_contact_number'), data.get('note')))
+        conn.commit()
+        return jsonify({'message': 'Staff added successfully'})
+    except sqlite3.IntegrityError as e:
+        return jsonify({'error': f'Duplicate entry: {str(e)}'}), 400
+    finally:
+        conn.close()
+
+@app.route('/api/staff/<user_id>', methods=['DELETE'])
+@login_required
+def delete_staff(user_id):
+    if session.get('role') != 'manager':
+        return jsonify({'error': 'Unauthorized'}), 403
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('DELETE FROM users WHERE user_id = ? AND role = "staff"', (user_id,))
+    if cursor.rowcount == 0:
+        conn.close()
+        return jsonify({'error': 'Staff not found'}), 404
+    conn.commit()
+    conn.close()
+    return jsonify({'message': 'Staff deleted successfully'})
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5000, debug=True)

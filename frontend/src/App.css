@@ -456,3 +456,65 @@ button:disabled {
     max-height: 60vh; /* Adjust for smaller screens */
   }
 }
+/* Add to existing App.css */
+
+/* Staff List */
+.staff-list {
+  margin-top: 20px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.staff-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  margin: 10px 0;
+  background: #f9f9f9;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.staff-row span {
+  flex-grow: 1;
+}
+
+.delete-btn {
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+  color: white;
+  padding: 8px 15px;
+  width: auto;
+}
+
+.delete-btn:hover {
+  background: linear-gradient(135deg, #c0392b, #992d22);
+}
+
+/* Staff Details */
+.staff-details {
+  margin-top: 20px;
+  padding: 20px;
+  background: #f9f9f9;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.staff-details h2 {
+  margin-bottom: 15px;
+}
+
+.staff-details p {
+  margin: 5px 0;
+}
+
+/* Add Staff Form */
+.tab-content form textarea {
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #bdc3c7;
+  margin-top: 5px;
+  font-size: 16px;
+  width: 100%;
+  box-sizing: border-box;
+}
