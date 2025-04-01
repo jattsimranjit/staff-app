@@ -1,8 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
+import FullCalendar from '@fullcalendar/react';
+import dayGridPlugin from '@fullcalendar/daygrid';
+import timeGridPlugin from '@fullcalendar/timegrid';
+import listPlugin from '@fullcalendar/list';
 import './App.css';
 
-const API_URL = 'https://effective-palm-tree-69w959x7xqvp3ppg-5000.app.github.dev/api';
+const API_URL = 'https://symmetrical-waffle-pj9jwj5q56jj27vpx-5000.app.github.dev/api';
+
 axios.defaults.withCredentials = true;
 
 function App() {
@@ -16,19 +21,26 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [tab, setTab] = useState('home');
   const [shifts, setShifts] = useState([]);
-  const [selectedShift, setSelectedShift] = useState(null);
+  const [staffList, setStaffList] = useState([]);
+  const [selectedSite, setSelectedSite] = useState(null);
   const [newShift, setNewShift] = useState({ staff_id: '', site: '', date: '', start: '', end: '' });
+  const [isFetching, setIsFetching] = useState(false);
+  const [isScheduleHovered, setIsScheduleHovered] = useState(false);
+
+  const sites = ['Site 1', 'Site 2'];
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
       const response = await axios.post(`${API_URL}/login`, { phone, password });
+      console.log('Login response:', response.data);
       setUserId(response.data.user_id);
       setRole(response.data.role);
       setIsLoggedIn(true);
       setMessage('Logged in successfully');
     } catch (error) {
+      console.error('Login error:', error.response?.data, error.response?.status, error.message);
       setMessage(error.response?.data?.error || 'Login failed');
     } finally {
       setLoading(false);
@@ -75,14 +87,21 @@ function App() {
     );
   };
 
-  const fetchSchedule = async () => {
+  const fetchSchedule = useCallback(async () => {
+    setIsFetching(true);
     try {
       const response = await axios.get(`${API_URL}/schedule`);
-      setShifts(response.data.shifts);
+      console.log('Schedule response:', response.data);
+      setShifts(response.data.shifts || []);
+      if (role === 'manager') setStaffList(response.data.staff || []);
     } catch (error) {
+      console.error('Fetch schedule error:', error.response?.data, error.message);
       setMessage('Failed to fetch schedule');
+      setShifts([]);
+    } finally {
+      setIsFetching(false);
     }
-  };
+  }, [role]);
 
   const handleShiftSubmit = async (e) => {
     e.preventDefault();
@@ -91,8 +110,9 @@ function App() {
       await axios.post(`${API_URL}/schedule`, newShift);
       setMessage('Shift assigned successfully');
       setNewShift({ staff_id: '', site: '', date: '', start: '', end: '' });
-      fetchSchedule(); // Refresh schedule
+      fetchSchedule();
     } catch (error) {
+      console.error('Shift submit error:', error.response?.data, error.message);
       setMessage('Failed to assign shift');
     } finally {
       setLoading(false);
@@ -100,8 +120,19 @@ function App() {
   };
 
   useEffect(() => {
-    if (isLoggedIn && (tab === 'schedule' || role === 'manager')) fetchSchedule();
-  }, [isLoggedIn, tab, role]);
+    if (isLoggedIn && (tab === 'schedule' || role === 'manager')) {
+      fetchSchedule();
+    }
+  }, [isLoggedIn, tab, role, fetchSchedule]);
+
+  const events = (shifts || [])
+    .filter((shift) => shift.site === selectedSite)
+    .map((shift) => ({
+      title: `${shift.staff_id} (${shift.start} - ${shift.end})`,
+      start: new Date(`${shift.date}T${shift.start}`),
+      end: new Date(`${shift.date}T${shift.end}`),
+      resource: shift.site,
+    }));
 
   if (!isLoggedIn) {
     return (
@@ -150,7 +181,11 @@ function App() {
             </svg>
             Home
           </li>
-          <li className={tab === 'schedule' ? 'active' : ''} onClick={() => setTab('schedule')}>
+          <li
+            className={tab === 'schedule' ? 'active' : ''}
+            onMouseEnter={() => setIsScheduleHovered(true)}
+            onMouseLeave={() => setIsScheduleHovered(false)}
+          >
             <svg className="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
               <line x1="16" y1="2" x2="16" y2="6"></line>
@@ -158,6 +193,22 @@ function App() {
               <line x1="3" y1="10" x2="21" y2="10"></line>
             </svg>
             Schedule
+            {isScheduleHovered && (
+              <ul className="submenu">
+                {sites.map((site) => (
+                  <li
+                    key={site}
+                    onClick={() => {
+                      setTab('schedule');
+                      setSelectedSite(site);
+                      setIsScheduleHovered(false);
+                    }}
+                  >
+                    {site}
+                  </li>
+                ))}
+              </ul>
+            )}
           </li>
           {role !== 'manager' && (
             <li className={tab === 'hours' ? 'active' : ''} onClick={() => setTab('hours')}>
@@ -210,114 +261,116 @@ function App() {
         {tab === 'schedule' && role === 'manager' && (
           <div className="tab-content">
             <h1>Manage Schedule</h1>
-            <form onSubmit={handleShiftSubmit} className="hours-form">
-              <div className="date-inputs">
-                <label>
-                  Staff ID
-                  <select
-                    value={newShift.staff_id}
-                    onChange={(e) => setNewShift({ ...newShift, staff_id: e.target.value })}
-                  >
-                    <option value="">Select Staff</option>
-                    <option value="S001">S001</option>
-                    <option value="S002">S002</option>
-                    <option value="S003">S003</option>
-                  </select>
-                </label>
-                <label>
-                  Site
-                  <select
-                    value={newShift.site}
-                    onChange={(e) => setNewShift({ ...newShift, site: e.target.value })}
-                  >
-                    <option value="">Select Site</option>
-                    <option value="Site 1">Site 1</option>
-                    <option value="Site 2">Site 2</option>
-                  </select>
-                </label>
-              </div>
-              <div className="date-inputs">
-                <label>
-                  Date
-                  <input
-                    type="date"
-                    value={newShift.date}
-                    onChange={(e) => setNewShift({ ...newShift, date: e.target.value })}
+            {!selectedSite ? (
+              <p>Select a site from the sidebar to view its schedule.</p>
+            ) : (
+              <div className="calendar-section">
+                <h2>{selectedSite} Schedule</h2>
+                {isFetching ? (
+                  <p>Loading schedule...</p>
+                ) : (
+                  <FullCalendar
+                    plugins={[dayGridPlugin, timeGridPlugin, listPlugin]}
+                    initialView="timeGridWeek"
+                    events={events}
+                    eventDidMount={(info) => {
+                      info.el.style.background = info.event.extendedProps.resource === 'Site 1'
+                        ? 'linear-gradient(135deg, #3498db, #2980b9)'
+                        : 'linear-gradient(135deg, #e74c3c, #c0392b)';
+                      info.el.style.border = 'none';
+                      info.el.style.borderRadius = '10px';
+                      info.el.style.color = 'white';
+                      info.el.style.padding = '5px 10px';
+                      info.el.style.fontSize = '14px';
+                      info.el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+                    }}
+                    headerToolbar={{
+                      left: 'prev,next today',
+                      center: 'title',
+                      right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek',
+                    }}
+                    contentHeight="auto" // Dynamic height based on content
+                    scrollTime="08:00:00" // Start view at 8 AM
+                    slotLabelFormat={{
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      hour12: false,
+                    }}
+                    eventTimeFormat={{
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      hour12: false,
+                    }}
                   />
-                </label>
-                <label>
-                  Start Time
-                  <input
-                    type="time"
-                    value={newShift.start}
-                    onChange={(e) => setNewShift({ ...newShift, start: e.target.value })}
-                  />
-                </label>
-                <label>
-                  End Time
-                  <input
-                    type="time"
-                    value={newShift.end}
-                    onChange={(e) => setNewShift({ ...newShift, end: e.target.value })}
-                  />
-                </label>
+                )}
+                <form onSubmit={handleShiftSubmit} className="shift-form">
+                  <label>
+                    Staff
+                    <select
+                      value={newShift.staff_id}
+                      onChange={(e) => setNewShift({ ...newShift, staff_id: e.target.value, site: selectedSite })}
+                    >
+                      <option value="">Select Staff</option>
+                      {staffList.map((staff) => (
+                        <option key={staff.user_id} value={staff.user_id}>
+                          {staff.user_id}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Date
+                    <input
+                      type="date"
+                      value={newShift.date}
+                      onChange={(e) => setNewShift({ ...newShift, date: e.target.value })}
+                    />
+                  </label>
+                  <label>
+                    Start Time
+                    <input
+                      type="time"
+                      value={newShift.start}
+                      onChange={(e) => setNewShift({ ...newShift, start: e.target.value })}
+                    />
+                  </label>
+                  <label>
+                    End Time
+                    <input
+                      type="time"
+                      value={newShift.end}
+                      onChange={(e) => setNewShift({ ...newShift, end: e.target.value })}
+                    />
+                  </label>
+                  <button className="blue" type="submit" disabled={loading}>
+                    {loading ? 'Assigning...' : 'Assign Shift'}
+                  </button>
+                </form>
               </div>
-              <div className="hours-button-container">
-                <button className="blue" type="submit" disabled={loading}>
-                  {loading ? 'Assigning...' : 'Assign Shift'}
-                </button>
-              </div>
-            </form>
-            <div className="shift-list">
-              {shifts.map((shift, index) => (
-                <div key={index} className={`shift-row ${shift.site === 'Site 1' ? 'site1' : 'site2'}`}>
-                  <svg className="shift-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                    <line x1="16" y1="2" x2="16" y2="6"></line>
-                    <line x1="8" y1="2" x2="8" y2="6"></line>
-                    <line x1="3" y1="10" x2="21" y2="10"></line>
-                  </svg>
-                  <span>{shift.staff_id}</span>
-                  <span>{shift.site}</span>
-                  <span>{shift.date}</span>
-                  <span>{`${shift.start} - ${shift.end}`}</span>
-                </div>
-              ))}
-            </div>
+            )}
             {message && <p className="message">{message}</p>}
           </div>
         )}
         {tab === 'schedule' && role !== 'manager' && (
           <div className="tab-content">
             <h1>Your Schedule</h1>
-            <div className="shift-list">
-              {shifts.map((shift, index) => (
-                <div
-                  key={index}
-                  className={`shift-row ${shift.site === 'Site 1' ? 'site1' : 'site2'}`}
-                  onClick={() => setSelectedShift(shift)}
-                >
-                  <svg className="shift-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                    <line x1="16" y1="2" x2="16" y2="6"></line>
-                    <line x1="8" y1="2" x2="8" y2="6"></line>
-                    <line x1="3" y1="10" x2="21" y2="10"></line>
-                  </svg>
-                  <span>{shift.site}</span>
-                  <span>{shift.date}</span>
-                  <span>{`${shift.start} - ${shift.end}`}</span>
-                </div>
-              ))}
-            </div>
-            {selectedShift && (
-              <div className="modal">
-                <div className="modal-content">
-                  <h2>Shift Details</h2>
-                  <p><strong>Site:</strong> {selectedShift.site}</p>
-                  <p><strong>Date:</strong> {selectedShift.date}</p>
-                  <p><strong>Time:</strong> {selectedShift.start} - {selectedShift.end}</p>
-                  <button onClick={() => setSelectedShift(null)}>Close</button>
-                </div>
+            {isFetching ? (
+              <p>Loading schedule...</p>
+            ) : (
+              <div className="shift-list">
+                {shifts.map((shift, index) => (
+                  <div key={index} className={`shift-row ${shift.site === 'Site 1' ? 'site1' : 'site2'}`}>
+                    <svg className="shift-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                      <line x1="16" y1="2" x2="16" y2="6"></line>
+                      <line x1="8" y1="2" x2="8" y2="6"></line>
+                      <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                    <span>{shift.site}</span>
+                    <span>{shift.date}</span>
+                    <span>{`${shift.start} - ${shift.end}`}</span>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -325,7 +378,7 @@ function App() {
         {tab === 'hours' && role !== 'manager' && (
           <div className="tab-content">
             <h1>Your Hours</h1>
-            {/* Hours tab unchanged for brevity */}
+            {/* Hours tab omitted */}
           </div>
         )}
       </div>
