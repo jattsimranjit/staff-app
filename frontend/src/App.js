@@ -28,7 +28,9 @@ function App() {
   const [isScheduleHovered, setIsScheduleHovered] = useState(false);
   const [staff, setStaff] = useState([]);
   const [showAddStaff, setShowAddStaff] = useState(false);
+  const [showEditStaff, setShowEditStaff] = useState(null);
   const [selectedStaff, setSelectedStaff] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
 
   const sites = ['Site 1', 'Site 2'];
 
@@ -134,12 +136,13 @@ function App() {
     setLoading(true);
     const formData = new FormData(e.target);
     const staffData = Object.fromEntries(formData);
+    staffData.sites = formData.getAll('sites').join(',');
     try {
       await axios.post(`${API_URL}/staff`, staffData);
       setMessage('Staff added successfully');
       setShowAddStaff(false);
       fetchStaff();
-      fetchSchedule(); // Refresh staff dropdown
+      fetchSchedule();
     } catch (error) {
       setMessage(error.response?.data?.error || 'Failed to add staff');
     } finally {
@@ -147,15 +150,38 @@ function App() {
     }
   };
 
-  const handleDeleteStaff = async (user_id) => {
-    if (!confirm(`Delete ${user_id}?`)) return;
+  const handleEditStaff = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    const formData = new FormData(e.target);
+    const staffData = Object.fromEntries(formData);
+    staffData.sites = formData.getAll('sites').join(',');
     try {
-      await axios.delete(`${API_URL}/staff/${user_id}`);
-      setMessage('Staff deleted successfully');
+      await axios.put(`${API_URL}/staff/${showEditStaff.user_id}`, staffData);
+      setMessage('Staff updated successfully');
+      setShowEditStaff(null);
       fetchStaff();
-      fetchSchedule(); // Refresh staff dropdown
+      fetchSchedule();
     } catch (error) {
-      setMessage('Failed to delete staff');
+      setMessage(error.response?.data?.error || 'Failed to update staff');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteStaff = async (user_id) => {
+    if (showDeleteConfirm === user_id) {
+      try {
+        await axios.delete(`${API_URL}/staff/${user_id}`);
+        setMessage('Staff deleted successfully');
+        fetchStaff();
+        fetchSchedule();
+        setShowDeleteConfirm(null);
+      } catch (error) {
+        setMessage('Failed to delete staff');
+      }
+    } else {
+      setShowDeleteConfirm(user_id);
     }
   };
 
@@ -174,6 +200,8 @@ function App() {
       end: new Date(`${shift.date}T${shift.end}`),
       resource: shift.site,
     }));
+
+  const filteredStaffList = staffList.filter((s) => s.sites && s.sites.split(',').includes(selectedSite));
 
   if (!isLoggedIn) {
     return (
@@ -201,7 +229,9 @@ function App() {
     );
   }
 
-  if (showAddStaff) {
+  if (showAddStaff || showEditStaff) {
+    const isEditing = !!showEditStaff;
+    const staffData = showEditStaff || {};
     return (
       <div className="app-container">
         <div className="sidebar">
@@ -215,24 +245,48 @@ function App() {
           <div className="sidebar-logo"><img src="/fortis-logo.png" alt="Fortis Security Logo" /></div>
         </div>
         <div className="main-content">
-          <div className="tab-content">
-            <h1>Add New Staff</h1>
-            <form onSubmit={handleAddStaff}>
-              <label>User ID <input type="text" name="user_id" required /></label>
-              <label>Name <input type="text" name="name" required /></label>
-              <label>Email <input type="email" name="email" required /></label>
-              <label>Phone <input type="tel" name="phone" required /></label>
-              <label>Password <input type="password" name="password" required /></label>
-              <label>Address <input type="text" name="address" /></label>
-              <label>Date of Birth <input type="date" name="dob" /></label>
-              <label>S.I.N <input type="text" name="sin" /></label>
-              <label>Security License <input type="text" name="security_license" /></label>
-              <label>Emergency Contact Name <input type="text" name="emergency_contact_name" /></label>
-              <label>Emergency Contact Number <input type="tel" name="emergency_contact_number" /></label>
-              <label>Note <textarea name="note" rows="3"></textarea></label>
+          <div className="tab-content staff-form-container">
+            <h1>{isEditing ? 'Edit Staff' : 'Add New Staff'}</h1>
+            <form onSubmit={isEditing ? handleEditStaff : handleAddStaff} className="staff-form">
+              <div className="form-section">
+                <h3>Personal Info</h3>
+                <label>User ID <input type="text" name="user_id" defaultValue={staffData.user_id || ''} required disabled={isEditing} /></label>
+                <label>Name <input type="text" name="name" defaultValue={staffData.name || ''} required /></label>
+                <label>Email <input type="email" name="email" defaultValue={staffData.email || ''} required /></label>
+                <label>Phone <input type="tel" name="phone" defaultValue={staffData.phone || ''} required /></label>
+                <label>Password <input type="password" name="password" defaultValue={staffData.password || ''} required /></label>
+                <label>Role
+                  <select name="role" defaultValue={staffData.role || 'Security Officer'} required>
+                    <option value="Security Officer">Security Officer</option>
+                    <option value="Supervisor">Supervisor</option>
+                    <option value="Manager">Manager</option>
+                  </select>
+                </label>
+              </div>
+              <div className="form-section">
+                <h3>Additional Info</h3>
+                <label>Address <input type="text" name="address" defaultValue={staffData.address || ''} /></label>
+                <label>Date of Birth <input type="date" name="dob" defaultValue={staffData.dob || ''} /></label>
+                <label>S.I.N <input type="text" name="sin" defaultValue={staffData.sin || ''} /></label>
+                <label>Security License <input type="text" name="security_license" defaultValue={staffData.security_license || ''} /></label>
+              </div>
+              <div className="form-section">
+                <h3>Emergency Contact</h3>
+                <label>Name <input type="text" name="emergency_contact_name" defaultValue={staffData.emergency_contact_name || ''} /></label>
+                <label>Number <input type="tel" name="emergency_contact_number" defaultValue={staffData.emergency_contact_number || ''} /></label>
+              </div>
+              <div className="form-section">
+                <h3>Sites</h3>
+                {sites.map((site) => (
+                  <label key={site} className="checkbox-label">
+                    <input type="checkbox" name="sites" value={site} defaultChecked={staffData.sites?.split(',').includes(site)} /> {site}
+                  </label>
+                ))}
+                <label>Note <textarea name="note" defaultValue={staffData.note || ''}></textarea></label>
+              </div>
               <div className="button-group">
-                <button className="blue" type="submit" disabled={loading}>{loading ? 'Adding...' : 'Add Staff'}</button>
-                <button className="grayed" type="button" onClick={() => setShowAddStaff(false)}>Cancel</button>
+                <button className="blue" type="submit" disabled={loading}>{loading ? 'Saving...' : isEditing ? 'Update Staff' : 'Add Staff'}</button>
+                <button className="grayed" type="button" onClick={() => { setShowAddStaff(false); setShowEditStaff(null); }}>Cancel</button>
               </div>
             </form>
             {message && <p className="message">{message}</p>}
@@ -359,7 +413,7 @@ function App() {
                     Staff
                     <select value={newShift.staff_id} onChange={(e) => setNewShift({ ...newShift, staff_id: e.target.value, site: selectedSite })}>
                       <option value="">Select Staff</option>
-                      {staffList.map((s) => (
+                      {filteredStaffList.map((s) => (
                         <option key={s.user_id} value={s.user_id}>{s.name} ({s.user_id})</option>
                       ))}
                     </select>
@@ -405,22 +459,30 @@ function App() {
             <div className="staff-list">
               {staff.map((s) => (
                 <div key={s.user_id} className="staff-row">
-                  <span onClick={() => setSelectedStaff(s)} style={{ cursor: 'pointer' }}>{s.name} ({s.user_id})</span>
-                  <button className="delete-btn" onClick={() => handleDeleteStaff(s.user_id)}>Delete</button>
+                  <span onClick={() => setSelectedStaff(s)} style={{ cursor: 'pointer' }}>{s.name} ({s.user_id}) - {s.role}</span>
+                  <button className="edit-btn" onClick={() => setShowEditStaff(s)}>Edit</button>
+                  <button className="delete-btn" onClick={() => handleDeleteStaff(s.user_id)}>
+                    {showDeleteConfirm === s.user_id ? 'Confirm Delete' : 'Delete'}
+                  </button>
+                  {showDeleteConfirm === s.user_id && (
+                    <button className="grayed" onClick={() => setShowDeleteConfirm(null)}>Cancel</button>
+                  )}
                 </div>
               ))}
             </div>
             {selectedStaff && (
               <div className="staff-details">
                 <h2>{selectedStaff.name} ({selectedStaff.user_id})</h2>
-                <p>Email: {selectedStaff.email}</p>
-                <p>Phone: {selectedStaff.phone}</p>
-                <p>Address: {selectedStaff.address || 'N/A'}</p>
-                <p>D.O.B: {selectedStaff.dob || 'N/A'}</p>
-                <p>S.I.N: {selectedStaff.sin || 'N/A'}</p>
-                <p>Security License: {selectedStaff.security_license || 'N/A'}</p>
-                <p>Emergency Contact: {selectedStaff.emergency_contact_name || 'N/A'} ({selectedStaff.emergency_contact_number || 'N/A'})</p>
-                <p>Note: {selectedStaff.note || 'N/A'}</p>
+                <p><strong>Role:</strong> {selectedStaff.role}</p>
+                <p><strong>Email:</strong> {selectedStaff.email}</p>
+                <p><strong>Phone:</strong> {selectedStaff.phone}</p>
+                <p><strong>Address:</strong> {selectedStaff.address || 'N/A'}</p>
+                <p><strong>D.O.B:</strong> {selectedStaff.dob || 'N/A'}</p>
+                <p><strong>S.I.N:</strong> {selectedStaff.sin || 'N/A'}</p>
+                <p><strong>Security License:</strong> {selectedStaff.security_license || 'N/A'}</p>
+                <p><strong>Emergency Contact:</strong> {selectedStaff.emergency_contact_name || 'N/A'} ({selectedStaff.emergency_contact_number || 'N/A'})</p>
+                <p><strong>Sites:</strong> {selectedStaff.sites || 'N/A'}</p>
+                <p><strong>Note:</strong> {selectedStaff.note || 'N/A'}</p>
                 <button className="grayed" onClick={() => setSelectedStaff(null)}>Close</button>
               </div>
             )}
