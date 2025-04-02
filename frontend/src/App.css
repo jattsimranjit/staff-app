@@ -453,8 +453,8 @@ button:disabled {
 /* Site List */
 .site-list {
   margin-top: 20px;
-  max-height: 400px;
-  overflow-y: auto;
+  max-height: 50vh; /* Limit height to half the viewport height */
+  overflow-y: auto; /* Enable vertical scrolling */
   border-radius: 12px;
   background: #f9f9f9;
   padding: 10px;
@@ -711,5 +711,9 @@ button:disabled {
 
   .site-form {
     gap: 15px;
+  }
+
+  .site-list {
+    max-height: 40vh; /* Slightly smaller on mobile */
   }
 }
