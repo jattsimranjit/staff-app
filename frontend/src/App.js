@@ -22,6 +22,7 @@ function App() {
   const [tab, setTab] = useState('home');
   const [shifts, setShifts] = useState([]);
   const [staffList, setStaffList] = useState([]);
+  const [sites, setSites] = useState([]);
   const [selectedSite, setSelectedSite] = useState(null);
   const [newShift, setNewShift] = useState({ staff_id: '', site: '', date: '', start: '', end: '' });
   const [isFetching, setIsFetching] = useState(false);
@@ -30,9 +31,9 @@ function App() {
   const [showAddStaff, setShowAddStaff] = useState(false);
   const [showEditStaff, setShowEditStaff] = useState(null);
   const [selectedStaff, setSelectedStaff] = useState(null);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
-
-  const sites = ['Site 1', 'Site 2'];
+  const [showDeleteConfirmStaff, setShowDeleteConfirmStaff] = useState(null);
+  const [showAddSite, setShowAddSite] = useState(false);
+  const [showDeleteConfirmSite, setShowDeleteConfirmSite] = useState(null);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -96,11 +97,17 @@ function App() {
     try {
       const response = await axios.get(`${API_URL}/schedule`);
       setShifts(response.data.shifts || []);
-      if (role === 'Manager') setStaffList(response.data.staff || []);
+      if (role === 'Manager') {
+        setStaffList(response.data.staff || []);
+        setSites(response.data.sites || []);
+      }
     } catch (error) {
       setMessage('Failed to fetch schedule');
       setShifts([]);
-      if (role === 'Manager') setStaffList([]);
+      if (role === 'Manager') {
+        setStaffList([]);
+        setSites([]);
+      }
     } finally {
       setIsFetching(false);
     }
@@ -114,6 +121,18 @@ function App() {
     } catch (error) {
       setMessage('Failed to fetch staff list');
       setStaff([]);
+    }
+  }, [role]);
+
+  const fetchSites = useCallback(async () => {
+    if (role !== 'Manager') return;
+    try {
+      const response = await axios.get(`${API_URL}/sites`);
+      setSites(response.data.sites || []);
+      setStaffList(response.data.staff || []);
+    } catch (error) {
+      setMessage('Failed to fetch sites');
+      setSites([]);
     }
   }, [role]);
 
@@ -160,6 +179,7 @@ function App() {
       setShowAddStaff(false);
       fetchStaff();
       fetchSchedule();
+      fetchSites();
     } catch (error) {
       setMessage(error.response?.data?.error || 'Failed to add staff');
     } finally {
@@ -195,6 +215,7 @@ function App() {
       setShowEditStaff(null);
       fetchStaff();
       fetchSchedule();
+      fetchSites();
     } catch (error) {
       setMessage(error.response?.data?.error || 'Failed to update staff');
     } finally {
@@ -203,18 +224,59 @@ function App() {
   };
 
   const handleDeleteStaff = async (user_id) => {
-    if (showDeleteConfirm === user_id) {
+    if (showDeleteConfirmStaff === user_id) {
       try {
         await axios.delete(`${API_URL}/staff/${user_id}`);
         setMessage('Staff deleted successfully');
         fetchStaff();
         fetchSchedule();
-        setShowDeleteConfirm(null);
+        fetchSites();
+        setShowDeleteConfirmStaff(null);
       } catch (error) {
         setMessage(error.response?.data?.error || 'Failed to delete staff');
       }
     } else {
-      setShowDeleteConfirm(user_id);
+      setShowDeleteConfirmStaff(user_id);
+    }
+  };
+
+  const handleAddSite = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    const siteData = {
+      name: e.target.name.value,
+      address: e.target.address.value,
+      contact_name: e.target.contact_name.value,
+      contact_phone: e.target.contact_phone.value,
+      rate: e.target.rate.value,
+      note: e.target.note.value || null
+    };
+    try {
+      await axios.post(`${API_URL}/sites`, siteData);
+      setMessage('Site added successfully');
+      setShowAddSite(false);
+      fetchSites();
+      fetchSchedule();
+    } catch (error) {
+      setMessage(error.response?.data?.error || 'Failed to add site');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteSite = async (site_name) => {
+    if (showDeleteConfirmSite === site_name) {
+      try {
+        await axios.delete(`${API_URL}/sites/${site_name}`);
+        setMessage('Site deleted successfully');
+        fetchSites();
+        fetchSchedule();
+        setShowDeleteConfirmSite(null);
+      } catch (error) {
+        setMessage(error.response?.data?.error || 'Failed to delete site');
+      }
+    } else {
+      setShowDeleteConfirmSite(site_name);
     }
   };
 
@@ -222,8 +284,9 @@ function App() {
     if (isLoggedIn) {
       if (tab === 'schedule' || role === 'Manager') fetchSchedule();
       if (tab === 'staff' && role === 'Manager') fetchStaff();
+      if (tab === 'sites' && role === 'Manager') fetchSites();
     }
-  }, [isLoggedIn, tab, role, fetchSchedule, fetchStaff]);
+  }, [isLoggedIn, tab, role, fetchSchedule, fetchStaff, fetchSites]);
 
   const events = (shifts || [])
     .filter((shift) => shift.site === selectedSite)
@@ -273,6 +336,7 @@ function App() {
             <li onClick={() => setTab('home')}><svg className="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>Home</li>
             <li onClick={() => setTab('schedule')}><svg className="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>Schedule</li>
             <li className="active" onClick={() => setTab('staff')}><svg className="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>Staff</li>
+            <li onClick={() => setTab('sites')}><svg className="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2a10 10 0 0 0-10 10c0 5.5 4.5 10 10 10s10-4.5 10-10a10 10 0 0 0-10-10z"></path><path d="M12 6v6l4 2"></path></svg>Sites</li>
             <li onClick={handleLogout}><svg className="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>Logout</li>
           </ul>
           <div className="sidebar-logo"><img src="/fortis-logo.png" alt="Fortis Security Logo" /></div>
@@ -311,8 +375,8 @@ function App() {
               <div className="form-section">
                 <h3>Sites</h3>
                 {sites.map((site) => (
-                  <label key={site} className="checkbox-label">
-                    <input type="checkbox" name="sites" value={site} defaultChecked={staffData.sites?.split(',').includes(site)} /> {site}
+                  <label key={site.name} className="checkbox-label">
+                    <input type="checkbox" name="sites" value={site.name} defaultChecked={staffData.sites?.split(',').includes(site.name)} /> {site.name}
                   </label>
                 ))}
                 <label>Note <textarea name="note" defaultValue={staffData.note || ''}></textarea></label>
@@ -320,6 +384,44 @@ function App() {
               <div className="button-group">
                 <button className="blue" type="submit" disabled={loading}>{loading ? 'Saving...' : isEditing ? 'Update Staff' : 'Add Staff'}</button>
                 <button className="grayed" type="button" onClick={() => { setShowAddStaff(false); setShowEditStaff(null); }}>Cancel</button>
+              </div>
+            </form>
+            {message && <p className="message">{message}</p>}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (showAddSite) {
+    return (
+      <div className="app-container">
+        <div className="sidebar">
+          <h2>Manager Portal</h2>
+          <ul>
+            <li onClick={() => setTab('home')}><svg className="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>Home</li>
+            <li onClick={() => setTab('schedule')}><svg className="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>Schedule</li>
+            <li onClick={() => setTab('staff')}><svg className="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>Staff</li>
+            <li className="active" onClick={() => setTab('sites')}><svg className="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2a10 10 0 0 0-10 10c0 5.5 4.5 10 10 10s10-4.5 10-10a10 10 0 0 0-10-10z"></path><path d="M12 6v6l4 2"></path></svg>Sites</li>
+            <li onClick={handleLogout}><svg className="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>Logout</li>
+          </ul>
+          <div className="sidebar-logo"><img src="/fortis-logo.png" alt="Fortis Security Logo" /></div>
+        </div>
+        <div className="main-content">
+          <div className="tab-content site-form-container">
+            <h1>Add New Site</h1>
+            <form onSubmit={handleAddSite} className="site-form">
+              <div className="form-section">
+                <label>Site Name <input type="text" name="name" required /></label>
+                <label>Site Address <input type="text" name="address" required /></label>
+                <label>Contact Name <input type="text" name="contact_name" required /></label>
+                <label>Contact Phone <input type="tel" name="contact_phone" required /></label>
+                <label>Rate ($/hr) <input type="number" name="rate" step="0.01" required /></label>
+                <label>Note <textarea name="note"></textarea></label>
+              </div>
+              <div className="button-group">
+                <button className="blue" type="submit" disabled={loading}>{loading ? 'Saving...' : 'Add Site'}</button>
+                <button className="grayed" type="button" onClick={() => setShowAddSite(false)}>Cancel</button>
               </div>
             </form>
             {message && <p className="message">{message}</p>}
@@ -352,8 +454,8 @@ function App() {
             {isScheduleHovered && (
               <ul className="submenu">
                 {sites.map((site) => (
-                  <li key={site} onClick={() => { setTab('schedule'); setSelectedSite(site); setIsScheduleHovered(false); }}>
-                    {site}
+                  <li key={site.name} onClick={() => { setTab('schedule'); setSelectedSite(site.name); setIsScheduleHovered(false); }}>
+                    {site.name}
                   </li>
                 ))}
               </ul>
@@ -368,6 +470,15 @@ function App() {
                 <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
               </svg>
               Staff
+            </li>
+          )}
+          {role === 'Manager' && (
+            <li className={tab === 'sites' ? 'active' : ''} onClick={() => setTab('sites')}>
+              <svg className="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 2a10 10 0 0 0-10 10c0 5.5 4.5 10 10 10s10-4.5 10-10a10 10 0 0 0-10-10z"></path>
+                <path d="M12 6v6l4 2"></path>
+              </svg>
+              Sites
             </li>
           )}
           {role !== 'Manager' && (
@@ -496,10 +607,10 @@ function App() {
                   <span onClick={() => setSelectedStaff(s)} style={{ cursor: 'pointer' }}>{s.name} ({s.user_id}) - {s.role}</span>
                   <button className="edit-btn" onClick={() => setShowEditStaff(s)}>Edit</button>
                   <button className="delete-btn" onClick={() => handleDeleteStaff(s.user_id)}>
-                    {showDeleteConfirm === s.user_id ? 'Confirm Delete' : 'Delete'}
+                    {showDeleteConfirmStaff === s.user_id ? 'Confirm Delete' : 'Delete'}
                   </button>
-                  {showDeleteConfirm === s.user_id && (
-                    <button className="grayed" onClick={() => setShowDeleteConfirm(null)}>Cancel</button>
+                  {showDeleteConfirmStaff === s.user_id && (
+                    <button className="grayed" onClick={() => setShowDeleteConfirmStaff(null)}>Cancel</button>
                   )}
                 </div>
               ))}
@@ -518,6 +629,45 @@ function App() {
                 <p><strong>Sites:</strong> {selectedStaff.sites || 'N/A'}</p>
                 <p><strong>Note:</strong> {selectedStaff.note || 'N/A'}</p>
                 <button className="grayed" onClick={() => setSelectedStaff(null)}>Close</button>
+              </div>
+            )}
+            {message && <p className="message">{message}</p>}
+          </div>
+        )}
+        {tab === 'sites' && role === 'Manager' && (
+          <div className="tab-content">
+            <h1>Sites List</h1>
+            <button className="blue" onClick={() => setShowAddSite(true)}>Add New Site</button>
+            <div className="site-list">
+              {sites.map((site) => (
+                <div key={site.name} className="site-row">
+                  <span onClick={() => setSelectedSite(site.name)} style={{ cursor: 'pointer' }}>{site.name} - {site.address}</span>
+                  <button className="delete-btn" onClick={() => handleDeleteSite(site.name)}>
+                    {showDeleteConfirmSite === site.name ? 'Confirm Delete' : 'Delete'}
+                  </button>
+                  {showDeleteConfirmSite === site.name && (
+                    <button className="grayed" onClick={() => setShowDeleteConfirmSite(null)}>Cancel</button>
+                  )}
+                </div>
+              ))}
+            </div>
+            {selectedSite && (
+              <div className="site-details">
+                <h2>{sites.find(s => s.name === selectedSite).name}</h2>
+                <p><strong>Address:</strong> {sites.find(s => s.name === selectedSite).address}</p>
+                <p><strong>Contact Name:</strong> {sites.find(s => s.name === selectedSite).contact_name}</p>
+                <p><strong>Contact Phone:</strong> {sites.find(s => s.name === selectedSite).contact_phone}</p>
+                <p><strong>Rate:</strong> ${sites.find(s => s.name === selectedSite).rate}/hr</p>
+                <p><strong>Note:</strong> {sites.find(s => s.name === selectedSite).note || 'N/A'}</p>
+                <h3>Assigned Staff:</h3>
+                <ul>
+                  {staffList
+                    .filter(s => s.sites && s.sites.split(',').includes(selectedSite))
+                    .map(s => (
+                      <li key={s.user_id}>{s.name} ({s.user_id})</li>
+                    ))}
+                </ul>
+                <button className="grayed" onClick={() => setSelectedSite(null)}>Close</button>
               </div>
             )}
             {message && <p className="message">{message}</p>}
