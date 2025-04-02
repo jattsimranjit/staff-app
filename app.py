@@ -4,7 +4,7 @@ import sqlite3
 from functools import wraps
 
 app = Flask(__name__)
-app.secret_key = 'your-secret-key-here'  # Replace with a secure key
+app.secret_key = 'your-secret-key-here'  # Replace with a secure key in production
 CORS(app, supports_credentials=True)
 
 def get_db_connection():
@@ -49,10 +49,10 @@ def get_schedule():
     user_role = session.get('role')
     conn = get_db_connection()
     cursor = conn.cursor()
-    if user_role == 'manager':
+    if user_role == 'Manager':
         cursor.execute('SELECT * FROM shifts')
         shifts = cursor.fetchall()
-        cursor.execute('SELECT user_id, name, sites FROM users WHERE role != "manager"')
+        cursor.execute('SELECT user_id, name, sites FROM users WHERE role != "Manager"')
         staff = cursor.fetchall()
         conn.close()
         return jsonify({
@@ -68,7 +68,7 @@ def get_schedule():
 @app.route('/api/schedule', methods=['POST'])
 @login_required
 def add_shift():
-    if session.get('role') != 'manager':
+    if session.get('role') != 'Manager':
         return jsonify({'error': 'Unauthorized'}), 403
     data = request.get_json()
     conn = get_db_connection()
@@ -82,11 +82,11 @@ def add_shift():
 @app.route('/api/staff', methods=['GET'])
 @login_required
 def get_staff():
-    if session.get('role') != 'manager':
+    if session.get('role') != 'Manager':
         return jsonify({'error': 'Unauthorized'}), 403
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute('SELECT * FROM users WHERE role != "manager"')
+    cursor.execute('SELECT * FROM users WHERE role != "Manager"')
     staff = cursor.fetchall()
     conn.close()
     return jsonify([dict(s) for s in staff])
@@ -94,7 +94,7 @@ def get_staff():
 @app.route('/api/staff', methods=['POST'])
 @login_required
 def add_staff():
-    if session.get('role') != 'manager':
+    if session.get('role') != 'Manager':
         return jsonify({'error': 'Unauthorized'}), 403
     data = request.get_json()
     conn = get_db_connection()
@@ -109,14 +109,21 @@ def add_staff():
         conn.commit()
         return jsonify({'message': 'Staff added successfully'})
     except sqlite3.IntegrityError as e:
-        return jsonify({'error': f'Duplicate entry: {str(e)}'}), 400
+        error_msg = str(e)
+        if 'UNIQUE constraint failed' in error_msg:
+            field = error_msg.split('.')[-1]  # e.g., 'users.phone'
+            return jsonify({'error': f'Duplicate {field} already exists'}), 400
+        elif 'CHECK constraint failed' in error_msg:
+            return jsonify({'error': f'Invalid role value: {data["role"]}'}), 400
+        else:
+            return jsonify({'error': f'Database error: {error_msg}'}), 400
     finally:
         conn.close()
 
 @app.route('/api/staff/<user_id>', methods=['PUT'])
 @login_required
 def update_staff(user_id):
-    if session.get('role') != 'manager':
+    if session.get('role') != 'Manager':
         return jsonify({'error': 'Unauthorized'}), 403
     data = request.get_json()
     conn = get_db_connection()
@@ -124,7 +131,7 @@ def update_staff(user_id):
     cursor.execute('''
         UPDATE users SET name = ?, email = ?, phone = ?, password = ?, role = ?, address = ?, dob = ?, sin = ?, 
         security_license = ?, emergency_contact_name = ?, emergency_contact_number = ?, note = ?, sites = ?
-        WHERE user_id = ? AND role != "manager"
+        WHERE user_id = ? AND role != "Manager"
     ''', (data['name'], data['email'], data['phone'], data['password'], data['role'], data.get('address'), 
           data.get('dob'), data.get('sin'), data.get('security_license'), data.get('emergency_contact_name'), 
           data.get('emergency_contact_number'), data.get('note'), data.get('sites'), user_id))
@@ -138,11 +145,11 @@ def update_staff(user_id):
 @app.route('/api/staff/<user_id>', methods=['DELETE'])
 @login_required
 def delete_staff(user_id):
-    if session.get('role') != 'manager':
+    if session.get('role') != 'Manager':
         return jsonify({'error': 'Unauthorized'}), 403
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute('DELETE FROM users WHERE user_id = ? AND role != "manager"', (user_id,))
+    cursor.execute('DELETE FROM users WHERE user_id = ? AND role != "Manager"', (user_id,))
     if cursor.rowcount == 0:
         conn.close()
         return jsonify({'error': 'Staff not found'}), 404

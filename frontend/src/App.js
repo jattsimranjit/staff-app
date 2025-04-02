@@ -42,6 +42,7 @@ function App() {
       setUserId(response.data.user_id);
       setRole(response.data.role);
       setIsLoggedIn(true);
+      setTab('home');
       setMessage('Logged in successfully');
     } catch (error) {
       setMessage(error.response?.data?.error || 'Login failed');
@@ -95,18 +96,18 @@ function App() {
     try {
       const response = await axios.get(`${API_URL}/schedule`);
       setShifts(response.data.shifts || []);
-      if (role === 'manager') setStaffList(response.data.staff || []);
+      if (role === 'Manager') setStaffList(response.data.staff || []);
     } catch (error) {
       setMessage('Failed to fetch schedule');
       setShifts([]);
-      if (role === 'manager') setStaffList([]);
+      if (role === 'Manager') setStaffList([]);
     } finally {
       setIsFetching(false);
     }
   }, [role]);
 
   const fetchStaff = useCallback(async () => {
-    if (role !== 'manager') return;
+    if (role !== 'Manager') return;
     try {
       const response = await axios.get(`${API_URL}/staff`);
       setStaff(response.data);
@@ -125,7 +126,7 @@ function App() {
       setNewShift({ staff_id: '', site: '', date: '', start: '', end: '' });
       fetchSchedule();
     } catch (error) {
-      setMessage('Failed to assign shift');
+      setMessage(error.response?.data?.error || 'Failed to assign shift');
     } finally {
       setLoading(false);
     }
@@ -134,9 +135,25 @@ function App() {
   const handleAddStaff = async (e) => {
     e.preventDefault();
     setLoading(true);
-    const formData = new FormData(e.target);
-    const staffData = Object.fromEntries(formData);
-    staffData.sites = formData.getAll('sites').join(',');
+    const staffData = {
+      user_id: e.target.user_id.value,
+      name: e.target.name.value,
+      email: e.target.email.value,
+      phone: e.target.phone.value,
+      password: e.target.password.value,
+      role: e.target.role.value,
+      address: e.target.address.value || null,
+      dob: e.target.dob.value || null,
+      sin: e.target.sin.value || null,
+      security_license: e.target.security_license.value || null,
+      emergency_contact_name: e.target.emergency_contact_name.value || null,
+      emergency_contact_number: e.target.emergency_contact_number.value || null,
+      note: e.target.note.value || null,
+      sites: Array.from(e.target.elements)
+        .filter(el => el.name === 'sites' && el.checked)
+        .map(el => el.value)
+        .join(',')
+    };
     try {
       await axios.post(`${API_URL}/staff`, staffData);
       setMessage('Staff added successfully');
@@ -153,9 +170,25 @@ function App() {
   const handleEditStaff = async (e) => {
     e.preventDefault();
     setLoading(true);
-    const formData = new FormData(e.target);
-    const staffData = Object.fromEntries(formData);
-    staffData.sites = formData.getAll('sites').join(',');
+    const staffData = {
+      user_id: e.target.user_id.value,
+      name: e.target.name.value,
+      email: e.target.email.value,
+      phone: e.target.phone.value,
+      password: e.target.password.value,
+      role: e.target.role.value,
+      address: e.target.address.value || null,
+      dob: e.target.dob.value || null,
+      sin: e.target.sin.value || null,
+      security_license: e.target.security_license.value || null,
+      emergency_contact_name: e.target.emergency_contact_name.value || null,
+      emergency_contact_number: e.target.emergency_contact_number.value || null,
+      note: e.target.note.value || null,
+      sites: Array.from(e.target.elements)
+        .filter(el => el.name === 'sites' && el.checked)
+        .map(el => el.value)
+        .join(',')
+    };
     try {
       await axios.put(`${API_URL}/staff/${showEditStaff.user_id}`, staffData);
       setMessage('Staff updated successfully');
@@ -178,7 +211,7 @@ function App() {
         fetchSchedule();
         setShowDeleteConfirm(null);
       } catch (error) {
-        setMessage('Failed to delete staff');
+        setMessage(error.response?.data?.error || 'Failed to delete staff');
       }
     } else {
       setShowDeleteConfirm(user_id);
@@ -187,8 +220,8 @@ function App() {
 
   useEffect(() => {
     if (isLoggedIn) {
-      if (tab === 'schedule' || role === 'manager') fetchSchedule();
-      if (tab === 'staff' && role === 'manager') fetchStaff();
+      if (tab === 'schedule' || role === 'Manager') fetchSchedule();
+      if (tab === 'staff' && role === 'Manager') fetchStaff();
     }
   }, [isLoggedIn, tab, role, fetchSchedule, fetchStaff]);
 
@@ -299,7 +332,7 @@ function App() {
   return (
     <div className="app-container">
       <div className="sidebar">
-        <h2>{role === 'manager' ? 'Manager Portal' : 'Staff Portal'}</h2>
+        <h2>{role === 'Manager' ? 'Manager Portal' : 'Staff Portal'}</h2>
         <ul>
           <li className={tab === 'home' ? 'active' : ''} onClick={() => setTab('home')}>
             <svg className="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -326,7 +359,7 @@ function App() {
               </ul>
             )}
           </li>
-          {role === 'manager' && (
+          {role === 'Manager' && (
             <li className={tab === 'staff' ? 'active' : ''} onClick={() => setTab('staff')}>
               <svg className="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
@@ -337,7 +370,7 @@ function App() {
               Staff
             </li>
           )}
-          {role !== 'manager' && (
+          {role !== 'Manager' && (
             <li className={tab === 'hours' ? 'active' : ''} onClick={() => setTab('hours')}>
               <svg className="sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="12" cy="12" r="10"></circle>
@@ -362,7 +395,7 @@ function App() {
           <div className="tab-content">
             <h1>Welcome {userId}</h1>
             <p className="staff-id">ID: {userId} ({role})</p>
-            {role !== 'manager' && (
+            {role !== 'Manager' && (
               <div className="button-group">
                 <button className={isClockedIn ? 'grayed' : 'blue'} onClick={() => clockAction('clock_in')} disabled={loading || isClockedIn}>
                   {loading && !isClockedIn ? 'Loading...' : 'Clock In'}
@@ -375,7 +408,7 @@ function App() {
             {message && <p className="message">{message}</p>}
           </div>
         )}
-        {tab === 'schedule' && role === 'manager' && (
+        {tab === 'schedule' && role === 'Manager' && (
           <div className="tab-content">
             <h1>Manage Schedule</h1>
             {!selectedSite ? (
@@ -428,7 +461,7 @@ function App() {
             {message && <p className="message">{message}</p>}
           </div>
         )}
-        {tab === 'schedule' && role !== 'manager' && (
+        {tab === 'schedule' && role !== 'Manager' && (
           <div className="tab-content">
             <h1>Your Schedule</h1>
             {isFetching ? (
@@ -450,9 +483,10 @@ function App() {
                 ))}
               </div>
             )}
+            {message && <p className="message">{message}</p>}
           </div>
         )}
-        {tab === 'staff' && role === 'manager' && (
+        {tab === 'staff' && role === 'Manager' && (
           <div className="tab-content">
             <h1>Staff List</h1>
             <button className="blue" onClick={() => setShowAddStaff(true)}>Add New Staff</button>
@@ -489,10 +523,11 @@ function App() {
             {message && <p className="message">{message}</p>}
           </div>
         )}
-        {tab === 'hours' && role !== 'manager' && (
+        {tab === 'hours' && role !== 'Manager' && (
           <div className="tab-content">
             <h1>Your Hours</h1>
-            {/* Hours tab omitted */}
+            <p>Hours functionality to be implemented.</p>
+            {message && <p className="message">{message}</p>}
           </div>
         )}
       </div>
